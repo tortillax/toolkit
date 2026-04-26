@@ -1,3 +1,8 @@
 module github.com/tortillax/toolkit
 
-go 1.24.4
+go 1.25.9
+
+require (
+	golang.org/x/crypto v0.50.0 // indirect
+	software.sslmate.com/src/go-pkcs12 v0.7.1 // indirect
+)

@@ -18,6 +18,5 @@ clean:
 test:
 	go test -v ./...
 
-ca-init:
+data-init:
 	mkdir $(DATA_DIR)
-	cd $(DATA_DIR) && ../$(BINARY_DIR)/ca

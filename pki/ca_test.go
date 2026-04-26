@@ -166,7 +166,7 @@ func TestLoadCA_FailsOnMissingFiles(t *testing.T) {
 func TestGenerateExportCertKey_ServerCert(t *testing.T) {
 	ca, _ := tempCA(t)
 
-	cert, err := ca.GenerateExportCertKey("svc.internal", "backend", time.Hour*24, true)
+	cert, err := ca.GenerateExportCertKey("svc.internal", "backend", nil, nil, time.Hour*24, true)
 	if err != nil {
 		t.Fatalf("GenerateExportCertKey failed: %v", err)
 	}
@@ -187,7 +187,7 @@ func TestGenerateExportCertKey_ServerCert(t *testing.T) {
 func TestGenerateExportCertKey_ClientCert(t *testing.T) {
 	ca, _ := tempCA(t)
 
-	cert, err := ca.GenerateExportCertKey("client-a", "ops", time.Hour*24, false)
+	cert, err := ca.GenerateExportCertKey("client-a", "ops", nil, nil, time.Hour*24, false)
 	if err != nil {
 		t.Fatalf("GenerateExportCertKey failed: %v", err)
 	}
@@ -199,7 +199,7 @@ func TestGenerateExportCertKey_ClientCert(t *testing.T) {
 func TestGenerateExportCertKey_PEMFilesCreated(t *testing.T) {
 	ca, dir := tempCA(t)
 
-	_, err := ca.GenerateExportCertKey("svc.internal", "backend", time.Hour*24, true)
+	_, err := ca.GenerateExportCertKey("svc.internal", "backend", nil, nil, time.Hour*24, true)
 	if err != nil {
 		t.Fatalf("GenerateExportCertKey failed: %v", err)
 	}
@@ -219,7 +219,7 @@ func TestGenerateExportCertKey_PEMFilesCreated(t *testing.T) {
 func TestGenerateExportCertKey_KeyFilePermissions(t *testing.T) {
 	ca, dir := tempCA(t)
 
-	_, err := ca.GenerateExportCertKey("svc.internal", "backend", time.Hour*24, true)
+	_, err := ca.GenerateExportCertKey("svc.internal", "backend", nil, nil, time.Hour*24, true)
 	if err != nil {
 		t.Fatalf("GenerateExportCertKey failed: %v", err)
 	}
@@ -240,7 +240,7 @@ func TestGenerateExportCertKey_KeyFilePermissions(t *testing.T) {
 func TestGenerateExportCertKey_SerialRegisteredInDB(t *testing.T) {
 	ca, _ := tempCA(t)
 
-	cert, err := ca.GenerateExportCertKey("svc.internal", "backend", time.Hour*24, true)
+	cert, err := ca.GenerateExportCertKey("svc.internal", "backend", nil, nil, time.Hour*24, true)
 	if err != nil {
 		t.Fatalf("GenerateExportCertKey failed: %v", err)
 	}
@@ -257,7 +257,7 @@ func TestGenerateExportCertKey_SerialRegisteredInDB(t *testing.T) {
 func TestGenerateExportCertKey_SerialsPersistAcrossLoad(t *testing.T) {
 	ca, dir := tempCA(t)
 
-	cert, err := ca.GenerateExportCertKey("svc.internal", "backend", time.Hour*24, true)
+	cert, err := ca.GenerateExportCertKey("svc.internal", "backend", nil, nil, time.Hour*24, true)
 	if err != nil {
 		t.Fatalf("GenerateExportCertKey failed: %v", err)
 	}
@@ -287,7 +287,7 @@ func TestGenerateExportCertKey_SerialsPersistAcrossLoad(t *testing.T) {
 func TestRevoke_MarksSerialRevoked(t *testing.T) {
 	ca, _ := tempCA(t)
 
-	cert, err := ca.GenerateExportCertKey("svc.internal", "backend", time.Hour*24, true)
+	cert, err := ca.GenerateExportCertKey("svc.internal", "backend", nil, nil, time.Hour*24, true)
 	if err != nil {
 		t.Fatalf("GenerateExportCertKey failed: %v", err)
 	}
@@ -304,7 +304,7 @@ func TestRevoke_MarksSerialRevoked(t *testing.T) {
 func TestCARevoke_PersistsAcrossLoad(t *testing.T) {
 	ca, dir := tempCA(t)
 
-	cert, err := ca.GenerateExportCertKey("svc.internal", "backend", time.Hour*24, true)
+	cert, err := ca.GenerateExportCertKey("svc.internal", "backend", nil, nil, time.Hour*24, true)
 	if err != nil {
 		t.Fatalf("GenerateExportCertKey failed: %v", err)
 	}
@@ -332,7 +332,7 @@ func TestCARevoke_PersistsAcrossLoad(t *testing.T) {
 func TestCARevoke_FailsOnDuplicate(t *testing.T) {
 	ca, _ := tempCA(t)
 
-	cert, err := ca.GenerateExportCertKey("svc.internal", "backend", time.Hour*24, true)
+	cert, err := ca.GenerateExportCertKey("svc.internal", "backend", nil, nil, time.Hour*24, true)
 	if err != nil {
 		t.Fatalf("GenerateExportCertKey failed: %v", err)
 	}
@@ -351,7 +351,7 @@ func TestCARevoke_FailsOnDuplicate(t *testing.T) {
 func TestVerifyCert_ValidCert(t *testing.T) {
 	ca, _ := tempCA(t)
 
-	cert, err := ca.GenerateExportCertKey("svc.internal", "backend", time.Hour*24, true)
+	cert, err := ca.GenerateExportCertKey("svc.internal", "backend", nil, nil, time.Hour*24, true)
 	if err != nil {
 		t.Fatalf("GenerateExportCertKey failed: %v", err)
 	}
@@ -365,7 +365,7 @@ func TestVerifyCert_ValidCert(t *testing.T) {
 func TestVerifyCert_RevokedCert(t *testing.T) {
 	ca, _ := tempCA(t)
 
-	cert, err := ca.GenerateExportCertKey("svc.internal", "backend", time.Hour*24, true)
+	cert, err := ca.GenerateExportCertKey("svc.internal", "backend", nil, nil, time.Hour*24, true)
 	if err != nil {
 		t.Fatalf("GenerateExportCertKey failed: %v", err)
 	}
@@ -384,7 +384,7 @@ func TestVerifyCert_WrongCA(t *testing.T) {
 	ca, _ := tempCA(t)
 	ca2, _ := tempCA(t)
 
-	cert, err := ca.GenerateExportCertKey("svc.internal", "backend", time.Hour*24, true)
+	cert, err := ca.GenerateExportCertKey("svc.internal", "backend", nil, nil, time.Hour*24, true)
 	if err != nil {
 		t.Fatalf("GenerateExportCertKey failed: %v", err)
 	}
@@ -400,7 +400,7 @@ func TestVerifyCert_WrongCA(t *testing.T) {
 
 func TestGetSerial_ReturnsNonEmpty(t *testing.T) {
 	ca, _ := tempCA(t)
-	cert, err := ca.GenerateExportCertKey("svc.internal", "backend", time.Hour*24, true)
+	cert, err := ca.GenerateExportCertKey("svc.internal", "backend", nil, nil, time.Hour*24, true)
 	if err != nil {
 		t.Fatalf("GenerateExportCertKey failed: %v", err)
 	}
@@ -414,7 +414,7 @@ func TestIsCA_TrueForCAFalseForLeaf(t *testing.T) {
 	if !isCA(ca.certificate) {
 		t.Error("CA certificate should return true for isCA")
 	}
-	cert, err := ca.GenerateExportCertKey("svc.internal", "backend", time.Hour*24, true)
+	cert, err := ca.GenerateExportCertKey("svc.internal", "backend", nil, nil, time.Hour*24, true)
 	if err != nil {
 		t.Fatalf("GenerateExportCertKey failed: %v", err)
 	}
@@ -425,7 +425,7 @@ func TestIsCA_TrueForCAFalseForLeaf(t *testing.T) {
 
 func TestCertType_ReturnsOU(t *testing.T) {
 	ca, _ := tempCA(t)
-	cert, err := ca.GenerateExportCertKey("svc.internal", "myunit", time.Hour*24, true)
+	cert, err := ca.GenerateExportCertKey("svc.internal", "myunit", nil, nil, time.Hour*24, true)
 	if err != nil {
 		t.Fatalf("GenerateExportCertKey failed: %v", err)
 	}
@@ -440,11 +440,11 @@ func TestIntegration_FullLifecycle(t *testing.T) {
 	ca, dir := tempCA(t)
 
 	// issue server + client cert
-	server, err := ca.GenerateExportCertKey("api.internal", "api", time.Hour*24, true)
+	server, err := ca.GenerateExportCertKey("api.internal", "api", nil, nil, time.Hour*24, true)
 	if err != nil {
 		t.Fatalf("issue server cert: %v", err)
 	}
-	client, err := ca.GenerateExportCertKey("client-a", "ops", time.Hour*24, false)
+	client, err := ca.GenerateExportCertKey("client-a", "ops", nil, nil, time.Hour*24, false)
 	if err != nil {
 		t.Fatalf("issue client cert: %v", err)
 	}
@@ -508,7 +508,7 @@ func TestIntegration_FullLifecycle(t *testing.T) {
 	}
 
 	// issue a third cert from reloaded CA — proves serial counter continues correctly
-	third, err := loaded.GenerateExportCertKey("svc-b", "infra", time.Hour*24, true)
+	third, err := loaded.GenerateExportCertKey("svc-b", "infra", nil, nil, time.Hour*24, true)
 	if err != nil {
 		t.Fatalf("issue from reloaded CA: %v", err)
 	}

@@ -1,10 +1,17 @@
 package pki
 
 import (
+	"crypto/ecdsa"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"math/big"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
+
+	"software.sslmate.com/src/go-pkcs12"
 )
 
 func TestNewCRL_CreatesFile(t *testing.T) {
@@ -273,5 +280,297 @@ func TestIsRevoked_EmptyList(t *testing.T) {
 	crl := &CRL{revoked: make([]CRLRecord, 0)}
 	if crl.isRevoked("ANYTHING") {
 		t.Error("isRevoked on empty list should always return false")
+	}
+}
+
+func tempCertKey(t *testing.T) (certPath, keyPath string) {
+	t.Helper()
+	dir := t.TempDir()
+
+	cfg := CAConfig{
+		SerialNumber: *big.NewInt(1),
+		Subject:      pkix.Name{CommonName: "Test CA"},
+		Validity:     time.Hour * 24,
+		PathCert:     filepath.Join(dir, "ca.cert"),
+		PathKey:      filepath.Join(dir, "ca.key"),
+		PathDB:       filepath.Join(dir, "ca.db"),
+		PathCRL:      filepath.Join(dir, "ca.crl"),
+		PathCertDir:  filepath.Join(dir, "certs"),
+	}
+	ca, err := NewCA(cfg)
+	if err != nil {
+		t.Fatalf("NewCA failed: %v", err)
+	}
+	if err := ca.SaveCertKey(); err != nil {
+		t.Fatalf("SaveCertKey failed: %v", err)
+	}
+	return cfg.PathCert, cfg.PathKey
+}
+
+// --- ReadCert ---
+
+func TestReadCert_LoadsValidCert(t *testing.T) {
+	certPath, _ := tempCertKey(t)
+
+	cert, err := ReadCert(certPath)
+	if err != nil {
+		t.Fatalf("ReadCert failed: %v", err)
+	}
+	if cert == nil {
+		t.Fatal("expected non-nil certificate")
+	}
+}
+
+func TestReadCert_ReturnsCorrectCommonName(t *testing.T) {
+	certPath, _ := tempCertKey(t)
+
+	cert, err := ReadCert(certPath)
+	if err != nil {
+		t.Fatalf("ReadCert failed: %v", err)
+	}
+	if cert.Subject.CommonName != "Test CA" {
+		t.Errorf("common name mismatch: got %q, want %q", cert.Subject.CommonName, "Test CA")
+	}
+}
+
+func TestReadCert_ReturnsCorrectType(t *testing.T) {
+	certPath, _ := tempCertKey(t)
+
+	cert, err := ReadCert(certPath)
+	if err != nil {
+		t.Fatalf("ReadCert failed: %v", err)
+	}
+	if _, ok := any(cert).(*x509.Certificate); !ok {
+		t.Error("expected *x509.Certificate")
+	}
+}
+
+func TestReadCert_FailsOnMissingFile(t *testing.T) {
+	_, err := ReadCert("/nonexistent/path/cert.pem")
+	if err == nil {
+		t.Fatal("expected error for missing file, got nil")
+	}
+}
+
+func TestReadCert_FailsOnInvalidPEM(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "bad.crt")
+
+	if err := os.WriteFile(path, []byte("this is not a pem"), 0644); err != nil {
+		t.Fatalf("failed to write test file: %v", err)
+	}
+
+	_, err := ReadCert(path)
+	if err == nil {
+		t.Fatal("expected error for invalid PEM, got nil")
+	}
+}
+
+func TestReadCert_FailsOnKeyFilePassedAsCert(t *testing.T) {
+	_, keyPath := tempCertKey(t)
+
+	// key PEM block type is "EC PRIVATE KEY", ParseCertificate will reject it
+	_, err := ReadCert(keyPath)
+	if err == nil {
+		t.Fatal("expected error when passing key file as cert, got nil")
+	}
+}
+
+// --- ReadKey ---
+
+func TestReadKey_LoadsValidKey(t *testing.T) {
+	_, keyPath := tempCertKey(t)
+
+	key, err := ReadKey(keyPath)
+	if err != nil {
+		t.Fatalf("ReadKey failed: %v", err)
+	}
+	if key == nil {
+		t.Fatal("expected non-nil key")
+	}
+}
+
+func TestReadKey_ReturnsCorrectType(t *testing.T) {
+	_, keyPath := tempCertKey(t)
+
+	key, err := ReadKey(keyPath)
+	if err != nil {
+		t.Fatalf("ReadKey failed: %v", err)
+	}
+	if _, ok := any(key).(*ecdsa.PrivateKey); !ok {
+		t.Error("expected *ecdsa.PrivateKey")
+	}
+}
+
+func TestReadKey_FailsOnMissingFile(t *testing.T) {
+	_, err := ReadKey("/nonexistent/path/key.pem")
+	if err == nil {
+		t.Fatal("expected error for missing file, got nil")
+	}
+}
+
+func TestReadKey_FailsOnInvalidPEM(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "bad.key")
+
+	if err := os.WriteFile(path, []byte("this is not a pem"), 0600); err != nil {
+		t.Fatalf("failed to write test file: %v", err)
+	}
+
+	_, err := ReadKey(path)
+	if err == nil {
+		t.Fatal("expected error for invalid PEM, got nil")
+	}
+}
+
+func TestReadKey_FailsOnCertFilePassedAsKey(t *testing.T) {
+	certPath, _ := tempCertKey(t)
+
+	// cert PEM block bytes are a certificate, ParseECPrivateKey will reject them
+	_, err := ReadKey(certPath)
+	if err == nil {
+		t.Fatal("expected error when passing cert file as key, got nil")
+	}
+}
+
+func TestReadKey_PublicKeyMatchesAfterRoundTrip(t *testing.T) {
+	_, keyPath := tempCertKey(t)
+
+	key, err := ReadKey(keyPath)
+	if err != nil {
+		t.Fatalf("ReadKey failed: %v", err)
+	}
+	// sanity: public key must be on P-256
+	if key.Curve.Params().Name != "P-256" {
+		t.Errorf("expected P-256 curve, got %s", key.Curve.Params().Name)
+	}
+}
+
+// --- combineCertKeyFile ---
+
+func TestCombineCertKeyFile_CreatesFile(t *testing.T) {
+	certPath, keyPath := tempCertKey(t)
+	outPath := filepath.Join(t.TempDir(), "client.p12")
+
+	if err := CombineCertKeyFile(certPath, keyPath, outPath, ""); err != nil {
+		t.Fatalf("combineCertKeyFile failed: %v", err)
+	}
+	if _, err := os.Stat(outPath); os.IsNotExist(err) {
+		t.Error("p12 file was not created")
+	}
+}
+
+func TestCombineCertKeyFile_FilePermissions(t *testing.T) {
+	certPath, keyPath := tempCertKey(t)
+	outPath := filepath.Join(t.TempDir(), "client.p12")
+
+	if err := CombineCertKeyFile(certPath, keyPath, outPath, ""); err != nil {
+		t.Fatalf("combineCertKeyFile failed: %v", err)
+	}
+	info, err := os.Stat(outPath)
+	if err != nil {
+		t.Fatalf("stat failed: %v", err)
+	}
+	if info.Mode().Perm() != 0600 {
+		t.Errorf("wrong permissions: got %o, want %o", info.Mode().Perm(), 0600)
+	}
+}
+
+func TestCombineCertKeyFile_FailsIfOutputAlreadyExists(t *testing.T) {
+	certPath, keyPath := tempCertKey(t)
+	outPath := filepath.Join(t.TempDir(), "client.p12")
+
+	if err := CombineCertKeyFile(certPath, keyPath, outPath, ""); err != nil {
+		t.Fatalf("first combineCertKeyFile failed: %v", err)
+	}
+	if err := CombineCertKeyFile(certPath, keyPath, outPath, ""); err == nil {
+		t.Fatal("expected error on duplicate output path, got nil")
+	}
+}
+
+func TestCombineCertKeyFile_FailsOnMissingCert(t *testing.T) {
+	_, keyPath := tempCertKey(t)
+	outPath := filepath.Join(t.TempDir(), "client.p12")
+
+	err := CombineCertKeyFile("/nonexistent/cert.pem", keyPath, outPath, "")
+	if err == nil {
+		t.Fatal("expected error for missing cert, got nil")
+	}
+}
+
+func TestCombineCertKeyFile_FailsOnMissingKey(t *testing.T) {
+	certPath, _ := tempCertKey(t)
+	outPath := filepath.Join(t.TempDir(), "client.p12")
+
+	err := CombineCertKeyFile(certPath, "/nonexistent/key.pem", outPath, "")
+	if err == nil {
+		t.Fatal("expected error for missing key, got nil")
+	}
+}
+
+func TestCombineCertKeyFile_P12IsDecodable(t *testing.T) {
+	certPath, keyPath := tempCertKey(t)
+	outPath := filepath.Join(t.TempDir(), "client.p12")
+	password := "testpassword"
+
+	if err := CombineCertKeyFile(certPath, keyPath, outPath, password); err != nil {
+		t.Fatalf("combineCertKeyFile failed: %v", err)
+	}
+
+	p12Data, err := os.ReadFile(outPath)
+	if err != nil {
+		t.Fatalf("read p12 failed: %v", err)
+	}
+
+	key, cert, err := pkcs12.Decode(p12Data, password)
+	if err != nil {
+		t.Fatalf("pkcs12.Decode failed: %v", err)
+	}
+	if cert == nil {
+		t.Fatal("decoded cert is nil")
+	}
+	if key == nil {
+		t.Fatal("decoded key is nil")
+	}
+}
+
+func TestCombineCertKeyFile_P12PreservesCommonName(t *testing.T) {
+	certPath, keyPath := tempCertKey(t)
+	outPath := filepath.Join(t.TempDir(), "client.p12")
+
+	if err := CombineCertKeyFile(certPath, keyPath, outPath, ""); err != nil {
+		t.Fatalf("combineCertKeyFile failed: %v", err)
+	}
+
+	p12Data, err := os.ReadFile(outPath)
+	if err != nil {
+		t.Fatalf("read p12 failed: %v", err)
+	}
+
+	_, cert, err := pkcs12.Decode(p12Data, "")
+	if err != nil {
+		t.Fatalf("pkcs12.Decode failed: %v", err)
+	}
+	if cert.Subject.CommonName != "Test CA" {
+		t.Errorf("common name mismatch: got %q, want %q", cert.Subject.CommonName, "Test CA")
+	}
+}
+
+func TestCombineCertKeyFile_WrongPasswordFails(t *testing.T) {
+	certPath, keyPath := tempCertKey(t)
+	outPath := filepath.Join(t.TempDir(), "client.p12")
+
+	if err := CombineCertKeyFile(certPath, keyPath, outPath, "correctpassword"); err != nil {
+		t.Fatalf("combineCertKeyFile failed: %v", err)
+	}
+
+	p12Data, err := os.ReadFile(outPath)
+	if err != nil {
+		t.Fatalf("read p12 failed: %v", err)
+	}
+
+	_, _, err = pkcs12.Decode(p12Data, "wrongpassword")
+	if err == nil {
+		t.Fatal("expected error decoding p12 with wrong password, got nil")
 	}
 }

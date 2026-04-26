@@ -10,10 +10,13 @@ import (
 	"encoding/pem"
 	"fmt"
 	"math/big"
+	"net"
 	"os"
 	"path"
 	"strconv"
 	"time"
+
+	"software.sslmate.com/src/go-pkcs12"
 )
 
 const TYPE_CA_KEY = "CA KEY"
@@ -234,7 +237,7 @@ func (ca *CA) SaveCertKey() error {
 	return nil
 }
 
-func (ca *CA) GenerateExportCertKey(name, certType string, validity time.Duration, isServer bool) (*x509.Certificate, error) {
+func (ca *CA) GenerateExportCertKey(name, certType string, dnsNames []string, ips []net.IP, validity time.Duration, isServer bool) (*x509.Certificate, error) {
 	// generate key
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
@@ -274,6 +277,8 @@ func (ca *CA) GenerateExportCertKey(name, certType string, validity time.Duratio
 		},
 		NotBefore:   now,
 		NotAfter:    now.Add(validity),
+		DNSNames:    dnsNames,
+		IPAddresses: ips,
 		KeyUsage:    x509.KeyUsageDigitalSignature,
 		ExtKeyUsage: ku,
 	}
@@ -409,4 +414,71 @@ func certType(cert *x509.Certificate) string {
 		return ""
 	}
 	return cert.Subject.OrganizationalUnit[0]
+}
+
+func ReadCert(path string) (*x509.Certificate, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("[pki/ReadCert] read file: %w", err)
+	}
+
+	block, _ := pem.Decode(data)
+	if block == nil {
+		return nil, fmt.Errorf("[pki/ReadCert] no valid PEM block found in %s", path)
+	}
+
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		return nil, fmt.Errorf("[pki/ReadCert] parse certificate: %w", err)
+	}
+
+	return cert, nil
+}
+
+func ReadKey(path string) (*ecdsa.PrivateKey, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("[pki/ReadKey] read file: %w", err)
+	}
+
+	block, _ := pem.Decode(data)
+	if block == nil {
+		return nil, fmt.Errorf("[pki/ReadKey] no valid PEM block found in %s", path)
+	}
+
+	key, err := x509.ParseECPrivateKey(block.Bytes)
+	if err != nil {
+		return nil, fmt.Errorf("[pki/ReadKey] parse EC private key: %w", err)
+	}
+
+	return key, nil
+}
+
+func CombineCertKeyFile(certPath, keyPath, outPath, password string) error {
+	cert, err := ReadCert(certPath)
+	if err != nil {
+		return fmt.Errorf("[pki/ca/combineCertKeyFile] read cert: %w", err)
+	}
+
+	key, err := ReadKey(keyPath)
+	if err != nil {
+		return fmt.Errorf("[pki/ca/combineCertKeyFile] read key: %w", err)
+	}
+
+	p12Data, err := pkcs12.Modern.Encode(key, cert, nil, password)
+	if err != nil {
+		return fmt.Errorf("[pki/ca/combineCertKeyFile] encode p12: %w", err)
+	}
+
+	f, err := os.OpenFile(outPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
+	if err != nil {
+		return fmt.Errorf("[pki/ca/combineCertKeyFile] create output file: %w", err)
+	}
+	defer f.Close()
+
+	if _, err := f.Write(p12Data); err != nil {
+		return fmt.Errorf("[pki/ca/combineCertKeyFile] write p12: %w", err)
+	}
+
+	return nil
 }
