@@ -1,6 +1,7 @@
 # toolkit
-personal toolkit of components and helper tools
+Personal toolkit of components and helper tools.
 
+ ---
 
 Libraries:
  - PKI
@@ -9,8 +10,7 @@ Libraries:
 Tools:
  - ca
 
-
-
+ ---
 
  To build all, use `make` or specify tool to build, like so: `make ca`.
 
@@ -18,3 +18,5 @@ Tools:
 
  To uninstall, `sudo make uninstall`.
 
+
+[![Go](https://github.com/tortillax/toolkit/actions/workflows/go.yml/badge.svg)](https://github.com/tortillax/toolkit/actions/workflows/go.yml)
