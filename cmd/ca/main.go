@@ -27,7 +27,10 @@ examples:
   ca bundle 1
 `
 
+var caDir string
+
 func main() {
+	flag.StringVar(&caDir, "dir", "ca", "CA base directory")
 	flag.Usage = func() { fmt.Print(usage) }
 	flag.Parse()
 
@@ -67,6 +70,7 @@ func cmdInit(args []string) error {
 	cn := args[0]
 
 	cfg := pki.DefaultConfig(cn)
+	cfg.SetMultiPath(caDir)
 	ca, err := pki.NewCA(cfg)
 	if err != nil {
 		return fmt.Errorf("create CA: %w", err)
@@ -162,6 +166,7 @@ func cmdBundle(args []string) error {
 	}
 
 	cfg := pki.DefaultConfig("")
+	cfg.SetMultiPath(caDir)
 	certPath := cfg.PathCertDir + "/" + serial + ".crt"
 	keyPath := cfg.PathCertDir + "/" + serial + ".key"
 	outPath := cfg.PathCertDir + "/" + serial + ".p12"
@@ -176,6 +181,7 @@ func cmdBundle(args []string) error {
 
 func loadCA() (*pki.CA, error) {
 	cfg := pki.DefaultConfig("")
+	cfg.SetMultiPath(caDir)
 	ca, err := pki.LoadCA(cfg.PathKey, cfg.PathCert, cfg.PathDB, cfg.PathCRL, cfg.PathCertDir)
 	if err != nil {
 		return nil, fmt.Errorf("load CA (run 'ca init' first?): %w", err)

@@ -1,10 +1,12 @@
 BINARY_DIR := bin
+INSTALL_DIR := /usr/local/bin
 CMD_DIR := cmd
 DATA_DIR := data
+PREFIX := tk
 
 TARGETS := $(notdir $(wildcard $(CMD_DIR)/*))
 
-.PHONY: all clean $(TARGETS)
+.PHONY: all $(TARGETS) clean test install 
 
 all: $(TARGETS)
 
@@ -18,5 +20,7 @@ clean:
 test:
 	go test -v ./...
 
-data-init:
-	mkdir $(DATA_DIR)
+install:
+	for f in $(BINARY_DIR)/*; do \
+		cp $$f $(INSTALL_DIR)/$(PREFIX)-$$(basename $$f); \
+	done
