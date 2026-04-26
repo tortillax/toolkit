@@ -147,7 +147,7 @@ func TestLoadCADB_FillsIssuedList(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "test.db")
 
-	content := HEADER_CADB + "\n00000001\n00000002\n00000003\n"
+	content := HEADER_CADB + "\n1\n2\n3\n"
 	if err := os.WriteFile(path, []byte(content), 0600); err != nil {
 		t.Fatalf("failed to write test DB: %v", err)
 	}
@@ -156,7 +156,7 @@ func TestLoadCADB_FillsIssuedList(t *testing.T) {
 		t.Fatalf("LoadCADB failed: %v", err)
 	}
 
-	want := []string{"00000001", "00000002", "00000003"}
+	want := []string{"1", "2", "3"}
 	if len(db.issued) != len(want) {
 		t.Fatalf("expected %d records, got %d: %v", len(want), len(db.issued), db.issued)
 	}
@@ -171,7 +171,7 @@ func TestLoadCADB_SkipsEmptyLines(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "test.db")
 
-	content := HEADER_CADB + "\n00000001\n\n00000002\n\n"
+	content := HEADER_CADB + "\n\n1\n2\n\n"
 	if err := os.WriteFile(path, []byte(content), 0600); err != nil {
 		t.Fatalf("failed to write test DB: %v", err)
 	}
@@ -198,8 +198,8 @@ func TestNextSerial_FirstSerialOnEmptyDB(t *testing.T) {
 	if err != nil {
 		t.Fatalf("nextSerial failed: %v", err)
 	}
-	if serial != "00000001" {
-		t.Errorf("expected %q, got %q", "00000001", serial)
+	if serial != "1" {
+		t.Errorf("expected %q, got %q", "1", serial)
 	}
 }
 
@@ -211,10 +211,10 @@ func TestNextSerial_IncrementsFromLast(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewCADB failed: %v", err)
 	}
-	if err := db.issue("00000001"); err != nil {
+	if err := db.issue("1"); err != nil {
 		t.Fatalf("issue failed: %v", err)
 	}
-	if err := db.issue("00000002"); err != nil {
+	if err := db.issue("2"); err != nil {
 		t.Fatalf("issue failed: %v", err)
 	}
 
@@ -255,10 +255,10 @@ func TestIssue_AddsRecordInMemory(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewCADB failed: %v", err)
 	}
-	if err := db.issue("00000001"); err != nil {
+	if err := db.issue("1"); err != nil {
 		t.Fatalf("issue failed: %v", err)
 	}
-	if len(db.issued) != 1 || db.issued[0] != "00000001" {
+	if len(db.issued) != 1 || db.issued[0] != "1" {
 		t.Errorf("unexpected issued list: %v", db.issued)
 	}
 }
@@ -271,10 +271,10 @@ func TestIssue_FailsOnDuplicate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewCADB failed: %v", err)
 	}
-	if err := db.issue("00000001"); err != nil {
+	if err := db.issue("1"); err != nil {
 		t.Fatalf("first issue failed: %v", err)
 	}
-	if err := db.issue("00000001"); err == nil {
+	if err := db.issue("1"); err == nil {
 		t.Fatal("expected error on duplicate issue, got nil")
 	}
 }
@@ -300,7 +300,7 @@ func TestIssue_PersistsAcrossLoad(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewCADB failed: %v", err)
 	}
-	serials := []string{"00000001", "00000002", "00000003"}
+	serials := []string{"1", "2", "3"}
 	for _, s := range serials {
 		if err := db.issue(s); err != nil {
 			t.Fatalf("issue(%s) failed: %v", s, err)
@@ -332,15 +332,15 @@ func TestWasIssued_ReturnsTrueForIssuedSerial(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewCADB failed: %v", err)
 	}
-	if err := db.issue("00000001"); err != nil {
+	if err := db.issue("1"); err != nil {
 		t.Fatalf("issue failed: %v", err)
 	}
-	ok, err := db.wasIssued("00000001")
+	ok, err := db.wasIssued("1")
 	if err != nil {
 		t.Fatalf("wasIssued error: %v", err)
 	}
 	if !ok {
-		t.Error("expected 00000001 to be marked as issued")
+		t.Error("expected 1 to be marked as issued")
 	}
 }
 
@@ -352,18 +352,18 @@ func TestWasIssued_ReturnsFalseForUnknownSerial(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewCADB failed: %v", err)
 	}
-	ok, err := db.wasIssued("00000099")
+	ok, err := db.wasIssued("99")
 	if err != nil {
 		t.Fatalf("wasIssued error: %v", err)
 	}
 	if ok {
-		t.Error("expected 00000099 to not be issued")
+		t.Error("expected 99 to not be issued")
 	}
 }
 
 func TestWasIssued_ReturnsFalseOnEmptyList(t *testing.T) {
 	db := &CADB{issued: make([]string, 0)}
-	ok, err := db.wasIssued("00000001")
+	ok, err := db.wasIssued("1")
 	if err != nil {
 		t.Fatalf("wasIssued error: %v", err)
 	}
@@ -373,7 +373,7 @@ func TestWasIssued_ReturnsFalseOnEmptyList(t *testing.T) {
 }
 
 func TestWasIssued_FailsOnNonNumericSerial(t *testing.T) {
-	db := &CADB{issued: []string{"00000001"}}
+	db := &CADB{issued: []string{"1"}}
 	_, err := db.wasIssued("NOTANUMBER")
 	if err == nil {
 		t.Fatal("expected error for non-numeric serial, got nil")
@@ -389,7 +389,7 @@ func TestWasIssued_MatchesByNumericValue(t *testing.T) {
 		t.Fatalf("NewCADB failed: %v", err)
 	}
 	// issue with zero-padded format
-	if err := db.issue("00000001"); err != nil {
+	if err := db.issue("1"); err != nil {
 		t.Fatalf("issue failed: %v", err)
 	}
 	// wasIssued with plain integer string — should still match (numeric comparison)
@@ -398,6 +398,6 @@ func TestWasIssued_MatchesByNumericValue(t *testing.T) {
 		t.Fatalf("wasIssued error: %v", err)
 	}
 	if !ok {
-		t.Error("wasIssued should match numerically (00000001 == 1)")
+		t.Error("wasIssued should match numerically (1 == 1)")
 	}
 }
