@@ -17,7 +17,7 @@ commands:
   init   <cn>                          						generate new CA
   issue  <name> <type> <days> <mode> [dns1,dns2] [ip1,ip2]  issue certificate  (mode: server|client)
   revoke <serial> <reason>						            revoke certificate
-  bundle <serial>                      						create browser-importable p12 bundle
+  bundle <serial> [password]           						create browser-importable p12 bundle
 
 examples:
   ca init "My CA"
