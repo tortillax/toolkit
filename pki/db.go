@@ -83,7 +83,7 @@ func LoadCADB(path string) (*CADB, error) {
 func (db *CADB) nextSerial() (string, error) {
 	//get last serial
 	if len(db.issued) == 0 {
-		return "00000001", nil
+		return "1", nil
 	}
 
 	lastSerial := db.issued[len(db.issued)-1]
