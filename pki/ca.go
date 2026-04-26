@@ -20,9 +20,9 @@ import (
 )
 
 const TYPE_CA_KEY = "CA KEY"
-const TYPE_CA_CERT = "CA CERT"
+const TYPE_CA_CERT = "CERTIFICATE"
 
-const TYPE_CERT = "CERT"
+const TYPE_CERT = "CERTIFICATE"
 const TYPE_KEY = "KEY"
 
 type CA struct {
