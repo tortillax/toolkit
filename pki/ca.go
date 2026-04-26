@@ -465,7 +465,7 @@ func CombineCertKeyFile(certPath, keyPath, outPath, password string) error {
 		return fmt.Errorf("[pki/ca/combineCertKeyFile] read key: %w", err)
 	}
 
-	p12Data, err := pkcs12.Modern.Encode(key, cert, nil, password)
+	p12Data, err := pkcs12.Legacy.Encode(key, cert, nil, password)
 	if err != nil {
 		return fmt.Errorf("[pki/ca/combineCertKeyFile] encode p12: %w", err)
 	}
